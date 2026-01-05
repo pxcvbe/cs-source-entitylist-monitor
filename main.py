@@ -1,5 +1,6 @@
 import pymem
 import time
+from colorama import Fore, Back, Style
 
 # Constants
 MAX_ENTITIES = 64
@@ -41,7 +42,7 @@ while True:
             # check health
             if 0 < health <= 100:
                 # print(f"PLAYER {i} HEALTH: {health}")
-                line_output.append(f"Player {i} - HP: {health}")
+                line_output.append(f"[Player: {Fore.YELLOW}{i}{Fore.RESET} - HP: {Fore.GREEN}{health}{Fore.RESET}]")
 
         except Exception as e:
             print(f"Error: {e}")
