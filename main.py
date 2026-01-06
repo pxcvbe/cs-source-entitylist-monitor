@@ -4,12 +4,16 @@
 import pymem
 import time
 import sys
-from colorama import Fore, Back, Style
+from colorama import Fore, Back, Style, init
 from typing import Optional
+from title_obfuscator import call_title_obfuscator
+
+# Color init
+init()
 
 # Constants
-PROCESS_NAME = ""
-MODULE_NAME = ""
+PROCESS_NAME = "cstrike_win64.exe"
+MODULE_NAME = "client.dll"
 OFFSETS = {
     "ENTITY_LIST": 0x006098C8,
     "HEALTH": 0xD0
@@ -37,10 +41,10 @@ class EntityHealthMonitor:
     def initialize(self) -> bool:
         """Initialize memory connection"""
         try:
-            print(f"[*] Connecting to {PROCESS_NAME}...")
+            print(f"[*] Connecting to {Fore.GREEN}{PROCESS_NAME}{Fore.RESET}...")
             self.pm = pymem.Pymem(PROCESS_NAME)
 
-            print(f"[*] Getting {MODULE_NAME} base address...")
+            print(f"[*] Getting {Fore.GREEN}{MODULE_NAME}{Fore.RESET} base address...")
             client_module = pymem.process.module_from_name(
                 self.pm.process_handle,
                 MODULE_NAME
@@ -49,9 +53,9 @@ class EntityHealthMonitor:
 
             self.entity_base_address = self.client_base + OFFSETS.get("ENTITY_LIST")
 
-            print(f"[+] Successfully connected!")
-            print(f"[+] Client base: 0x{self.client_base:X}")
-            print(f"[+] Entity list: 0x{self.entity_base_address:X}")
+            print(f"[+] {Fore.GREEN}Successfully connected!{Fore.RESET}")
+            print(f"[+] Client base: {Fore.YELLOW}0x{self.client_base:X}{Fore.RESET}")
+            print(f"[+] Entity list: {Fore.YELLOW}0x{self.entity_base_address:X}{Fore.RESET}")
             print(f"[+] Monitoring {MAX_ENTITIES} entities...")
             print("-" * 80)
 
@@ -70,30 +74,129 @@ class EntityHealthMonitor:
             return False
         
     def read_entity_pointer(self, index: int) -> Optional[int]:
-        pass
+        """Read entity pointer at given index"""
+        try:
+            address = self.entity_base_address + index * ENTITY_SIZE
+            pointer = self.pm.read_ulonglong(address)
+
+            # Validate pointer
+            if VALIDATE_POINTERS:
+                if not pointer or pointer < MIN_POINTER_VALUE:
+                    return None
+                
+            if DEBUG:
+                print(f"[DEBUG] Index {index}: 0x{pointer:X}")
+
+            return pointer
+        
+        except Exception as e:
+            if DEBUG:
+                print(f"[DEBUG] Error reading index {index}: {e}")
+            return None
 
     def read_entity_health(self, entity_ptr: int) -> Optional[int]:
-        pass
+        """Read health value from entity pointer"""
+        try:
+            health = self.pm.read_int(entity_ptr + OFFSETS.get("HEALTH"))
+
+            # Validate health range
+            if HEALTH_MIN <= health <= HEALTH_MAX:
+                return health
+            
+            return None
+        
+        except Exception as e:
+            if DEBUG:
+                print(f"[DEBUG] Error reading health: {e}")
+            return None
 
     def scan_entities(self) -> list:
-        pass
+        """Scan all entities and return list of player with health"""
+        players = []
+
+        for i in range(MAX_ENTITIES):
+            entity_ptr = self.read_entity_pointer(i)
+
+            if not entity_ptr:
+                continue
+
+            health = self.read_entity_health(entity_ptr)
+
+            if health is not None:
+                players.append({
+                    "index": i,
+                    "health": health,
+                    "pointer": entity_ptr
+                })
+
+        return players
     
     def format_output(self, players: list) -> str:
-        pass
+        """Format player data for display"""
+        if not players:
+            return "No players detected"
+        
+        output_parts = []
+        for player in players:
+            if SHOW_INDEX:
+                output_parts.append(f"[PLAYER_IDX: {Fore.LIGHTYELLOW_EX}{player['index']}{Fore.RESET}] HP:{Fore.LIGHTGREEN_EX}{player['health']}{Fore.RESET}")
+            else:
+                output_parts.append(f"HP:{player['health']}")
+        
+        return " | ".join(output_parts)
 
     def run(self):
-        pass
+        """Main monitoring loop"""
+        if not self.initialize():
+            return
+        
+        self.running = True
+
+        try:
+            while self.running:
+                players = self.scan_entities()
+                output = self.format_output(players)
+
+                # Clear line and print output
+                print(f"\r{output}".ljust(160), end="", flush=True)
+
+                time.sleep(REFRESH_RATE)
+        except KeyboardInterrupt:
+            print(f"\n[*] {Fore.RED} Monitoring stopped by user {Fore.RESET}")
+        except pymem.exception.MemoryReadError:
+            print(f"\n[!] {Fore.YELLOW} Lost connection to game process {Fore.RESET}")
+        except Exception as e:
+            print(f"\n[!] Unexpected error: {e}")
+        # Always cleanup
+        finally:
+            self.cleanup()
 
     def cleanup(self):
-        pass
+        """Cleanup resources"""
+        self.running = False
+        if self.pm:
+            try:
+                self.pm.close_process()
+            except:
+                pass
+        print("\n[*] Cleanup complete!")
 
 def print_banner():
     """Print application banner"""
-    banner = """
+    banner = f"""
+    {Fore.LIGHTBLUE_EX}
+            ____ ___ _   _ _____ ___ ______  __     _   ___  
+     _ __  / ___|_ _| \ | |_   _|_ _|  _ \ \/ /    / | / _ \ 
+    | '_ \| |  _ | ||  \| | | |  | || |_) \  /     | || | | |
+    | | | | |_| || || |\  | | |  | ||  __//  \     | || |_| |
+    |_| |_|\____|___|_| \_| |_| |___|_|  /_/\_\    |_(_)___/                                            
+    {Fore.RESET}
+    {Fore.LIGHTMAGENTA_EX}
     ╔═══════════════════════════════════════════════╗
     ║  CS:S Entity List Health Monitor              ║
-    ║  Educational Purpose Only                     ║
+    ║  ⚠️ Educational Purpose Only                  ║
     ╚═══════════════════════════════════════════════╝
+    {Fore.RESET}
     """
     print(banner)
 
@@ -102,6 +205,9 @@ def main():
     print_banner()
 
     print()
+
+    """ Call Title Obfuscator"""
+    call_title_obfuscator()
 
     # Create and run monitor
     monitor = EntityHealthMonitor()
