@@ -1,3 +1,6 @@
+# CS: Source Entity List Health Monitor All Player
+# Educational tool for understanding source engine memory structures
+# Created: by pxcvbe!
 import pymem
 import time
 from colorama import Fore, Back, Style
