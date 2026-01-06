@@ -3,54 +3,99 @@
 # Created: by pxcvbe!
 import pymem
 import time
+import sys
 from colorama import Fore, Back, Style
+from typing import Optional
 
 # Constants
+PROCESS_NAME = ""
+MODULE_NAME = ""
+OFFSETS = {
+    "ENTITY_LIST": 0x006098C8,
+    "HEALTH": 0xD0
+}
 MAX_ENTITIES = 64
-
-# Offsets (CS- Source updated)
-OFFSETS_ENTITY_LIST = 0x006098C8
-OFFSET_HEALTH = 0xD0
 # Entity size to the next player
 ENTITY_SIZE = 0x20
+REFRESH_RATE = 0.05
+SHOW_INDEX = True
+HEALTH_MIN = 1
+HEALTH_MAX = 100
+VALIDATE_POINTERS = True
+MIN_POINTER_VALUE = 0x10000000
+DEBUG = False
 
-# Init
-pm = pymem.Pymem("cstrike_win64.exe")
+class EntityHealthMonitor:
+    """Monitor player health by reading game memory"""
 
-# Get module bases
-client_base = pymem.process.module_from_name(
-    pm.process_handle, "client.dll"
-).lpBaseOfDll
+    def __init__(self):
+        self.pm: Optional[pymem.Pymem] = None
+        self.client_base: int = 0
+        self.entity_base_address: int = 0
+        self.running: bool = False
 
-# Pointer bases
-entity_base_address = client_base + OFFSETS_ENTITY_LIST
-
-# Main loop
-while True:
-    # line output
-    line_output = []
-
-    # Loop through entities
-    for i in range(MAX_ENTITIES):
+    def initialize(self) -> bool:
+        """Initialize memory connection"""
         try:
-            entity_list_pointer = pm.read_ulonglong(entity_base_address + i * ENTITY_SIZE)
+            print(f"[*] Connecting to {PROCESS_NAME}...")
+            self.pm = pymem.Pymem(PROCESS_NAME)
 
-            # check valid pointer & skip invalid entities
-            if not entity_list_pointer or entity_list_pointer < 0x10000:
-                continue
+            print(f"[*] Getting {MODULE_NAME} base address...")
+            client_module = pymem.process.module_from_name(
+                self.pm.process_handle,
+                MODULE_NAME
+            )
+            self.client_base = client_module.lpBaseOfDll
 
-            # read health value
-            health = pm.read_int(entity_list_pointer + OFFSET_HEALTH)
+            self.entity_base_address = self.client_base + OFFSETS.get("ENTITY_LIST")
 
-            # check health
-            if 0 < health <= 100:
-                # print(f"PLAYER {i} HEALTH: {health}")
-                line_output.append(f"[Player: {Fore.YELLOW}{i}{Fore.RESET} - HP: {Fore.GREEN}{health}{Fore.RESET}]")
+            print(f"[+] Successfully connected!")
+            print(f"[+] Client base: 0x{self.client_base:X}")
+            print(f"[+] Entity list: 0x{self.entity_base_address:X}")
+            print(f"[+] Monitoring {MAX_ENTITIES} entities...")
+            print("-" * 80)
 
-        except Exception as e:
-            print(f"Error: {e}")
-
-    print(" | ".join(line_output).ljust(120), end="\r", flush=True)
-    time.sleep(0.05)
-
+            return True
         
+        except pymem.exception.ProcessNotFound:
+            print(f"[!] Error: {PROCESS_NAME} not found!")
+            print(f"[!] Make sure CS:Source is running")
+            return False
+        except pymem.exception.ModuleNotFoundError:
+            print(f"[!] Error: {MODULE_NAME} not found!")
+            print(f"[!] Make sure you're using CS:S x64 version")
+            return False
+        except Exception as e:
+            print(f"[!] Unexpected Error: {e}")
+            return False
+        
+    def read_entity_pointer(self, index: int) -> Optional[int]:
+        pass
+
+    def read_entity_health(self, entity_ptr: int) -> Optional[int]:
+        pass
+
+    def scan_entities(self) -> list:
+        pass
+    
+    def format_output(self, players: list) -> str:
+        pass
+
+    def run(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+def print_banner():
+    pass
+
+def main():
+    pass
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"\n[!] Fatal error: {e}")
+        sys.exit(1)
