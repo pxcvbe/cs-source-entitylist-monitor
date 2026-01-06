@@ -88,10 +88,24 @@ class EntityHealthMonitor:
         pass
 
 def print_banner():
-    pass
+    """Print application banner"""
+    banner = """
+    ╔═══════════════════════════════════════════════╗
+    ║  CS:S Entity List Health Monitor              ║
+    ║  Educational Purpose Only                     ║
+    ╚═══════════════════════════════════════════════╝
+    """
+    print(banner)
 
 def main():
-    pass
+    """Main entry point"""
+    print_banner()
+
+    print()
+
+    # Create and run monitor
+    monitor = EntityHealthMonitor()
+    monitor.run()
 
 if __name__ == "__main__":
     try:
